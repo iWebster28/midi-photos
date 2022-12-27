@@ -71,9 +71,7 @@ def main():
             continue
 
         # print(r_position.out)
-        err = r_position.err
-        if err != '':
-            print(err)
+        
         print(f"Found slider {channel_names[i]} at position (x, y): {r_position.out}")
         slider_coords[i] = [int(val) for val in r_position.out.split(", ")] # Leftmost x-coord remains unchanged for all sliders as they are left-aligned in the Photos UI
         i += 1
@@ -84,11 +82,12 @@ def main():
     r_size = get_applescript_item_attribute_by_description(attribute="size", description=channel_names[0])
     SLIDER_WIDTH, SLIDER_HEIGHT = [int(val) for val in r_size.out.split(", ")]
     X_OFFSET_SLIDER_MIDDLE = SLIDER_WIDTH / 2
+    Y_OFFSET_SLIDER = 2
     CONST_SCALE = SLIDER_WIDTH / 16383 # Each slider on the Graphite MF8 has a range -8192 to 8191
 
     # Arbitrarily move to starting position of first slider
     slider_channel = 0
-    pyautogui.moveTo(slider_coords[slider_channel][0], slider_coords[slider_channel][1] + 1)
+    pyautogui.moveTo(slider_coords[slider_channel][0], slider_coords[slider_channel][1] + Y_OFFSET_SLIDER)
     
     # Slider buffers 
     slider_buffer = [[0] for i in range(len(channel_names))] # Buffer 
@@ -131,9 +130,9 @@ def main():
                 # print(slider_buffer[slider_channel][-1]) # Diagnostic
 
                 if slider_channel != last_channel: # First event, or touched another slier: move instead of dragging (move and clicking) the mouse.
-                    pyautogui.leftClick(slider_coords[slider_channel][0] + (CONST_SCALE * slider_buffer[slider_channel][-1]) + X_OFFSET_SLIDER_MIDDLE, slider_coords[slider_channel][1] + 2) # was moveTo
+                    pyautogui.leftClick(slider_coords[slider_channel][0] + (CONST_SCALE * slider_buffer[slider_channel][-1]) + X_OFFSET_SLIDER_MIDDLE, slider_coords[slider_channel][1] + Y_OFFSET_SLIDER) # was moveTo
                 elif (slider_buffer[slider_channel][-1] != slider_buffer[slider_channel][-2]) or slider_buffer[slider_channel][-1] == 8191 or slider_buffer[slider_channel][-1] == -8192: # If at sample freq, or at min/max of given slider
-                    pyautogui.dragTo(slider_coords[slider_channel][0] + (CONST_SCALE * slider_buffer[slider_channel][-1]) + X_OFFSET_SLIDER_MIDDLE, slider_coords[slider_channel][1] + 2, button='left')
+                    pyautogui.dragTo(slider_coords[slider_channel][0] + (CONST_SCALE * slider_buffer[slider_channel][-1]) + X_OFFSET_SLIDER_MIDDLE, slider_coords[slider_channel][1] + Y_OFFSET_SLIDER, button='left')
 
                 last_channel = slider_channel
             
@@ -189,7 +188,7 @@ def main():
 
 def get_applescript_item_attribute_by_description(attribute, description):
     # NOTE: O(n) where `n` is size of all contents/items in photos app window
-    return applescript.run(f'''
+    result = applescript.run(f'''
     tell application "Photos" to activate
         tell application "System Events"
             tell process "Photos"
@@ -210,9 +209,15 @@ def get_applescript_item_attribute_by_description(attribute, description):
         end tell
     ''')
 
+    err = result.err
+    if err != '':
+        print(f"Error: attribute={attribute}, description={description}: {err}")
+        
+    return result
+
 def click_applescript_item_by_attribute_and_by_description(attribute, description):
     # NOTE: O(n) where `n` is size of all contents/items in photos app window
-    return applescript.run(f'''
+    result = applescript.run(f'''
     tell application "Photos" to activate
         tell application "System Events"
             tell process "Photos"
@@ -232,6 +237,12 @@ def click_applescript_item_by_attribute_and_by_description(attribute, descriptio
             end tell
         end tell
     ''')
+
+    err = result.err
+    if err != '':
+        print(f"Error: attribute={attribute}, description={description}: {err}")
+        
+    return result
 
 if __name__ == "__main__":
     main()
