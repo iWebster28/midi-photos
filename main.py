@@ -16,10 +16,15 @@ import pyautogui
 # Contrast: slider "Adjust the difference between light and dark tones" of group 1 of group "Light" of scroll area 1 of group 1 of group 1 of splitter group 1 of window 1 of application process "Photos" of application "System Events"
 # Black Point: slider "Adjust the darkest tonal area of the image " of group 1 of group "Light" of scroll area 1 of group 1 of group 1 of splitter group 1 of window 1 of application process "Photos" of application "System Events"
 
+# Define Samson Graphite MF8 Slider Ranges - TODO FUTURE: implement calibration/midi learn feature
+HW_SLIDER_MAX = 8191
+HW_SLIDER_MIN = -8192
+HW_SLIDER_RANGE = HW_SLIDER_MAX - HW_SLIDER_MIN
+
 SAMPLE_PERIOD = 16 # sample every 16th event for all midi events
-QUANTIZE_MOD = 16383 / SAMPLE_PERIOD * 2 
-NUM_STEPS_SLIDER = (100 * 2) # TODO: get steps programmatically
-FINE_GRAIN_DELTA = 16384 / NUM_STEPS_SLIDER
+QUANTIZE_MOD = HW_SLIDER_RANGE / SAMPLE_PERIOD * 2 
+SW_NUM_STEPS_SLIDER = (100 * 2) # TODO: get steps programmatically using applescript to extract range of slider
+FINE_GRAIN_DELTA = (HW_SLIDER_RANGE + 1) / SW_NUM_STEPS_SLIDER
 
 # Accessibility descriptions of sliders referenced with AppleScript
 # slider_ids = [
@@ -93,14 +98,14 @@ def main():
     SLIDER_WIDTH, SLIDER_HEIGHT = [int(val) for val in r_size.out.split(", ")]
     X_OFFSET_SLIDER_MIDDLE = SLIDER_WIDTH / 2
     Y_OFFSET_SLIDER = 2
-    CONST_SCALE = SLIDER_WIDTH / 16383 # Each slider on the Graphite MF8 has a range -8192 to 8191
+    CONST_SCALE = SLIDER_WIDTH / HW_SLIDER_RANGE # Each slider on the Graphite MF8 has a range -8192 to 8191
 
     # Arbitrarily move to starting position of first slider
     slider_channel = 0
     pyautogui.moveTo(slider_coords[slider_channel][0], slider_coords[slider_channel][1] + Y_OFFSET_SLIDER)
     
     # Slider buffers 
-    slider_buffer = [[0] for i in range(len(channel_names))] # Buffer 
+    hw_slider_buffer = [[0] for i in range(len(channel_names))] # Buffer 
     SLIDER_BUFFER_SIZE = 2 # Store last 2 values for slider buffer
     last_channel = None
 
@@ -119,6 +124,7 @@ def main():
 
             # Slider
             if hasattr(message, 'pitch'):
+                # Deal with negative slider values
                 neg = False
                 pitch = message.pitch
                 if pitch < 0:
@@ -126,25 +132,28 @@ def main():
                     neg = True
                 rem = (pitch % (QUANTIZE_MOD)) # Quantize to 2048-size steps
                 # print("rem:", rem)
-                if message.pitch == 8191: # max
-                    slider_buffer[slider_channel].append(8191)
-                else:
-                    # slider_buffer[slider_channel].append(message.pitch - rem if rem < 0 else message.pitch - rem)
-                    slider_buffer[slider_channel].append(pitch - rem if neg == False else 0 - (pitch - rem))
 
-                if len(slider_buffer[slider_channel]) > SLIDER_BUFFER_SIZE:
-                    del slider_buffer[slider_channel][0] # slider_buffer[slider_channel] = slider_buffer[slider_channel][1:4]
+                if message.pitch == HW_SLIDER_MAX: # max
+                    hw_slider_buffer[slider_channel].append(HW_SLIDER_MAX) # Since 8191 remainder for mod `any multiple of 8` is nonzero.
+                else: # Quantize
+                    # hw_slider_buffer[slider_channel].append(message.pitch - rem if rem < 0 else message.pitch - rem)
+                    hw_slider_buffer[slider_channel].append(pitch - rem if neg == False else 0 - (pitch - rem))
 
-                # slider_buffer[slider_channel][-1] = message.pitch # No quantizing.
+                # Maintain buffer of size SLIDER_BUFFER_SIZE
+                if len(hw_slider_buffer[slider_channel]) > SLIDER_BUFFER_SIZE:
+                    del hw_slider_buffer[slider_channel][0] # hw_slider_buffer[slider_channel] = hw_slider_buffer[slider_channel][1:4]
 
-                # print(slider_buffer[slider_channel][-1]) # Diagnostic
+                # hw_slider_buffer[slider_channel][-1] = message.pitch # No quantizing. (very slow due to pyautogui calls.)
 
-                if slider_channel != last_channel: # First event, or touched another slier: move instead of dragging (move and clicking) the mouse.
-                    pyautogui.leftClick(slider_coords[slider_channel][0] + (CONST_SCALE * slider_buffer[slider_channel][-1]) + X_OFFSET_SLIDER_MIDDLE, slider_coords[slider_channel][1] + Y_OFFSET_SLIDER) # was moveTo
-                elif (slider_buffer[slider_channel][-1] != slider_buffer[slider_channel][-2]) or \
-                    slider_buffer[slider_channel][-1] == 8191 or \
-                    slider_buffer[slider_channel][-1] == -8192: # If at sample freq, or at min/max of given slider
-                    pyautogui.dragTo(slider_coords[slider_channel][0] + (CONST_SCALE * slider_buffer[slider_channel][-1]) + X_OFFSET_SLIDER_MIDDLE, slider_coords[slider_channel][1] + Y_OFFSET_SLIDER, button='left')
+                # print(hw_slider_buffer[slider_channel][-1]) # Diagnostic
+
+                if slider_channel != last_channel: # First event, or touched another slider: move instead of dragging (move and clicking) the mouse.
+                    pyautogui.leftClick(slider_coords[slider_channel][0] + (CONST_SCALE * hw_slider_buffer[slider_channel][-1]) + X_OFFSET_SLIDER_MIDDLE, slider_coords[slider_channel][1] + Y_OFFSET_SLIDER) # was moveTo
+                
+                elif (hw_slider_buffer[slider_channel][-1] != hw_slider_buffer[slider_channel][-2]) or \
+                    hw_slider_buffer[slider_channel][-1] == HW_SLIDER_MAX or \
+                    hw_slider_buffer[slider_channel][-1] == HW_SLIDER_MIN: # If at sample freq, or at min/max of given slider
+                    pyautogui.dragTo(slider_coords[slider_channel][0] + (CONST_SCALE * hw_slider_buffer[slider_channel][-1]) + X_OFFSET_SLIDER_MIDDLE, slider_coords[slider_channel][1] + Y_OFFSET_SLIDER, button='left')
 
                 last_channel = slider_channel
             
@@ -153,20 +162,20 @@ def main():
                 # Jog CW
                 if message.value == 1:
                     # fine grain adjust
-                    pitch_delta = FINE_GRAIN_DELTA if not slider_buffer[slider_channel][-1] >= 8191 else 0
+                    pitch_delta = FINE_GRAIN_DELTA if not hw_slider_buffer[slider_channel][-1] >= HW_SLIDER_MAX else 0
                     if pitch_delta != 0:
                         pyautogui.dragRel(1, 0, button='left')
-                    slider_buffer[slider_channel][-1] += pitch_delta
-                    # print(f'fine grain CW {slider_buffer[slider_channel][-1]}')
+                    hw_slider_buffer[slider_channel][-1] += pitch_delta
+                    # print(f'fine grain CW {hw_slider_buffer[slider_channel][-1]}')
                 # Jog CCW
                 elif message.value == 65:
                     # print("ch:", slider_channel)
                     # fine grain adjust
-                    pitch_delta = -FINE_GRAIN_DELTA if not slider_buffer[slider_channel][-1] <= -8192 else 0
+                    pitch_delta = -FINE_GRAIN_DELTA if not hw_slider_buffer[slider_channel][-1] <= HW_SLIDER_MIN else 0
                     if pitch_delta != 0:
                         pyautogui.dragRel(-1, 0, button='left')
-                    slider_buffer[slider_channel][-1] += pitch_delta
-                    # print(f'fine grain CCW {slider_buffer[slider_channel][-1]}')
+                    hw_slider_buffer[slider_channel][-1] += pitch_delta
+                    # print(f'fine grain CCW {hw_slider_buffer[slider_channel][-1]}')
 
             if not hasattr(message, 'note'):
                 continue
@@ -182,7 +191,7 @@ def main():
                     slider_channel = message.note - 8
                     if slider_channel == 7: # Unused slider_channel
                         continue
-                    pyautogui.moveTo(slider_coords[slider_channel][0] + (CONST_SCALE * slider_buffer[slider_channel][-1]) + X_OFFSET_SLIDER_MIDDLE, slider_coords[slider_channel][1] + 2)
+                    pyautogui.moveTo(slider_coords[slider_channel][0] + (CONST_SCALE * hw_slider_buffer[slider_channel][-1]) + X_OFFSET_SLIDER_MIDDLE, slider_coords[slider_channel][1] + Y_OFFSET_SLIDER)
 
     return
 
