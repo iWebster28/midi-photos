@@ -26,6 +26,9 @@ QUANTIZE_MOD = HW_SLIDER_RANGE / SAMPLE_PERIOD * 2
 SW_NUM_STEPS_SLIDER = (100 * 2) # TODO: get steps programmatically using applescript to extract range of slider
 FINE_GRAIN_DELTA = (HW_SLIDER_RANGE + 1) / SW_NUM_STEPS_SLIDER
 
+# SW
+Y_OFFSET_SLIDER = 2
+
 # Accessibility descriptions of sliders referenced with AppleScript
 # slider_ids = [
 #     "Adjust the properties of Light locally across this image",
@@ -47,6 +50,10 @@ channel_names = [
     "Contrast",
     "Black Point"
 ]
+
+# Slider buffers 
+hw_slider_buffer = [[0] for i in range(len(channel_names))] # Buffer 
+SLIDER_BUFFER_SIZE = 2 # Store last 2 values for slider buffer
 
 # Button mapping to applescript commands (run under System Events)
 midi_note_to_applescript = {
@@ -98,34 +105,11 @@ def main():
     r_size = get_applescript_slider_attribute_by_description(attribute="size", description=channel_names[0])
     SLIDER_WIDTH, SLIDER_HEIGHT = [int(val) for val in r_size.out.split(", ")]
     X_OFFSET_SLIDER_MIDDLE = SLIDER_WIDTH / 2
-    Y_OFFSET_SLIDER = 2
     CONST_SCALE = SLIDER_WIDTH / HW_SLIDER_RANGE # Each slider on the Graphite MF8 has a range -8192 to 8191
 
-    # Slider buffers 
-    hw_slider_buffer = [[0] for i in range(len(channel_names))] # Buffer 
-    SLIDER_BUFFER_SIZE = 2 # Store last 2 values for slider buffer
-    last_channel = None
-
-    # Set init values of sliders
-    # NOTE: Assume edit pane still open
-    i = 0
-    while i < len(channel_names):
-        r_value = get_applescript_slider_attribute_by_description(attribute="value", description=channel_names[i])
-         # Could not find a slider element: is the edit pane open?
-        if r_position.out == '':
-            print("Could not hook into Photos window. Assuming Edit pane is closed. Trying to open Edit pane.")
-            r_edit = click_applescript_item_by_attribute_and_by_description(attribute="button", description="Edit")
-            continue
-        hw_slider_conv = (float(r_value.out) * (HW_SLIDER_RANGE + 1) / 2) # + slider_coords[i][0]
-        hw_slider_buffer[i].append(hw_slider_conv)
-        print(f"Found SW slider value for channel {channel_names[i]} with value: {r_value.out}")
-        print(f"- Convert to HW slider value: {hw_slider_conv}")
-        i += 1
-
-    # Arbitrarily move to starting position of first slider
     slider_channel = 0
-    pyautogui.moveTo(slider_coords[slider_channel][0], slider_coords[slider_channel][1] + Y_OFFSET_SLIDER)
-    
+    last_channel = None
+    set_init_slider_positions()
 
     # Start receiving MIDI events and translate to pyautogui actions
     with mido.open_input('SAMSON Graphite MF8') as port:
@@ -206,6 +190,9 @@ def main():
                     r = applescript.tell.app('System Events', midi_note_to_applescript[message.note]) # prev photo (key code 124 == right arrow)
                     if r.code != 0:
                         raise Exception(f"Applescript returned {r.code}")
+                    
+                    if message.note == 1: # Rec button on slider 2
+                        set_init_slider_positions()
                 
                 elif message.note - 8 <= 15 and message.note - 8 >= 0: # Solo track selects (to select a slider to edit again. Should point mouse to last value)
                     slider_channel = message.note - 8
@@ -214,6 +201,27 @@ def main():
                     pyautogui.moveTo(slider_coords[slider_channel][0] + (CONST_SCALE * hw_slider_buffer[slider_channel][-1]) + X_OFFSET_SLIDER_MIDDLE, slider_coords[slider_channel][1] + Y_OFFSET_SLIDER)
 
     return
+
+def set_init_slider_positions():
+    # Set init values of sliders
+    # NOTE: Assume edit pane still open
+    i = 0
+    while i < len(channel_names):
+        r_value = get_applescript_slider_attribute_by_description(attribute="value", description=channel_names[i])
+        # Could not find a slider element: is the edit pane open?
+        if r_value.out == '':
+            print("Could not hook into Photos window. Assuming Edit pane is closed. Trying to open Edit pane.")
+            r_edit = click_applescript_item_by_attribute_and_by_description(attribute="button", description="Edit")
+            continue
+        hw_slider_conv = (float(r_value.out) * (HW_SLIDER_RANGE + 1) / 2) # + slider_coords[i][0]
+        hw_slider_buffer[i].append(hw_slider_conv)
+        print(f"Found SW slider value for channel {channel_names[i]} with value: {r_value.out}")
+        print(f"- Convert to HW slider value: {hw_slider_conv}")
+        i += 1
+
+    # Arbitrarily move to starting position of first slider
+    pyautogui.moveTo(slider_coords[0][0], slider_coords[0][1] + Y_OFFSET_SLIDER)
+    
 
 def get_applescript_slider_attribute_by_description(attribute, description):
     # NOTE: O(n) where `n` is size of all contents/items in photos app window
