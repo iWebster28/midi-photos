@@ -17,6 +17,8 @@ import math
 
 SAMPLE_PERIOD = 16 # every 16th sample for all midi events
 QUANTIZE_MOD = 16383 / SAMPLE_PERIOD * 2 
+NUM_STEPS_SLIDER = (100 * 2)
+FINE_GRAIN_DELTA = 16384 / NUM_STEPS_SLIDER
 
 # Names of sliders referenced with AppleScript
 slider_ids = [
@@ -227,7 +229,7 @@ def main():
                 # Jog CW
                 if message.value == 1:
                     # fine grain adjust
-                    pitch_delta = 128 if not slider_buffer[channel][-1] >= 8191 else 0
+                    pitch_delta = FINE_GRAIN_DELTA if not slider_buffer[channel][-1] >= 8191 else 0
                     if pitch_delta != 0:
                         pyautogui.dragRel(1, 0, button='left')
                     slider_buffer[channel][-1] += pitch_delta
@@ -236,7 +238,7 @@ def main():
                 elif message.value == 65:
                     # print("ch:", channel)
                     # fine grain adjust
-                    pitch_delta = -128 if not slider_buffer[channel][-1] <= -8192 else 0
+                    pitch_delta = -FINE_GRAIN_DELTA if not slider_buffer[channel][-1] <= -8192 else 0
                     if pitch_delta != 0:
                         pyautogui.dragRel(-1, 0, button='left')
                     slider_buffer[channel][-1] += pitch_delta
