@@ -43,6 +43,16 @@ channel_names = [
     "Black Point"
 ]
 
+# Button mapping to applescript commands (run under System Events)
+midi_note_to_applescript = {
+    1: 'keystroke "e" using {command down}', # rec button on slider 2 -> Apply preset edits
+    0: 'key code 36', # Rec button on slider 1 -> Open/close editor pane (key code 36 == enter)
+    46: 'key code 123', # Left button -> prev photo (key code 123 == left arrow)
+    91: 'key code 123', # RW button
+    47: 'key code 124', # Right button -> prev photo (key code 124 == right arrow)
+    92: 'key code 124', # FF button
+}
+
 # UI coordinates of sliders in photos.
 slider_coords = [(None, None) for i in range(0, len(channel_names))]
 
@@ -131,7 +141,9 @@ def main():
 
                 if slider_channel != last_channel: # First event, or touched another slier: move instead of dragging (move and clicking) the mouse.
                     pyautogui.leftClick(slider_coords[slider_channel][0] + (CONST_SCALE * slider_buffer[slider_channel][-1]) + X_OFFSET_SLIDER_MIDDLE, slider_coords[slider_channel][1] + Y_OFFSET_SLIDER) # was moveTo
-                elif (slider_buffer[slider_channel][-1] != slider_buffer[slider_channel][-2]) or slider_buffer[slider_channel][-1] == 8191 or slider_buffer[slider_channel][-1] == -8192: # If at sample freq, or at min/max of given slider
+                elif (slider_buffer[slider_channel][-1] != slider_buffer[slider_channel][-2]) or \
+                    slider_buffer[slider_channel][-1] == 8191 or \
+                    slider_buffer[slider_channel][-1] == -8192: # If at sample freq, or at min/max of given slider
                     pyautogui.dragTo(slider_coords[slider_channel][0] + (CONST_SCALE * slider_buffer[slider_channel][-1]) + X_OFFSET_SLIDER_MIDDLE, slider_coords[slider_channel][1] + Y_OFFSET_SLIDER, button='left')
 
                 last_channel = slider_channel
@@ -161,20 +173,8 @@ def main():
             
             # Buttons
             if message.type == "note_on" and message.velocity == 127:
-                if message.note == 1: # rec button on slider 2
-                    r = applescript.tell.app('System Events', 'keystroke "e" using {command down}') # Apply preset edits
-                    if r.code != 0:
-                        raise Exception(f"Applescript returned {r.code}")
-                elif message.note == 0: # Rec button on slider 1
-                    r = applescript.tell.app('System Events', 'key code 36') # Open/close editor pane (key code 36 == enter)
-                    if r.code != 0:
-                        raise Exception(f"Applescript returned {r.code}")
-                elif message.note == 46 or message.note == 91: # Left button 
-                    r = applescript.tell.app('System Events', 'key code 123') # prev photo (key code 123 == left arrow)
-                    if r.code != 0:
-                        raise Exception(f"Applescript returned {r.code}")
-                elif message.note == 47 or message.note == 92: # Right button 
-                    r = applescript.tell.app('System Events', 'key code 124') # prev photo (key code 124 == right arrow)
+                if message.note in midi_note_to_applescript:
+                    r = applescript.tell.app('System Events', midi_note_to_applescript[message.note]) # prev photo (key code 124 == right arrow)
                     if r.code != 0:
                         raise Exception(f"Applescript returned {r.code}")
                 
