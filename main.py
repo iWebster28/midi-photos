@@ -5,6 +5,7 @@
 import applescript
 import mido
 import pyautogui
+import math
 
 # Brilliance: slider "Adjust the properties of Light locally across this image" of group 1 of group "Light" of scroll area 1 of group 1 of group 1 of splitter group 1 of window 1 of application process "Photos" of application "System Events"
 # Exposure: set value of slider "Adjust the overall lightness of the image" of group 1 of group "Light" of scroll area 1 of group 1 of group 1 of splitter group 1 of window 1 of application process "Photos" of application "System Events"
@@ -13,6 +14,9 @@ import pyautogui
 # Brightness: slider "Lighten or darken the mid tones" of group 1 of group "Light" of scroll area 1 of group 1 of group 1 of splitter group 1 of window 1 of application process "Photos" of application "System Events" 
 # Contrast: slider "Adjust the difference between light and dark tones" of group 1 of group "Light" of scroll area 1 of group 1 of group 1 of splitter group 1 of window 1 of application process "Photos" of application "System Events"
 # Black Point: slider "Adjust the darkest tonal area of the image " of group 1 of group "Light" of scroll area 1 of group 1 of group 1 of splitter group 1 of window 1 of application process "Photos" of application "System Events"
+
+SAMPLE_PERIOD = 16 # every 16th sample for all midi events
+QUANTIZE_MOD = 16383 / SAMPLE_PERIOD * 2 
 
 # Names of sliders referenced with AppleScript
 slider_ids = [
@@ -169,7 +173,8 @@ def main():
     pyautogui.moveTo(slider_coords[channel][0], slider_coords[channel][1] + 1)
     
     count = 0
-    slider_buffer = None
+    # slider_buffer[channel][-1] = 0
+    slider_buffer = [[0] for i in range(len(channel_names))]
     last_channel = None
 
     # Start receiving MIDI events and translate to pyautogui actions
@@ -177,49 +182,89 @@ def main():
         for message in port:
             print(message)
 
-            if hasattr(message, 'channel'):
+            if hasattr(message, 'channel') and message.type != "control_change" and message.type != "note_on" and message.type != "note_off":
                 channel = message.channel
             
+            if message.channel == 7 or channel == 7:
+                continue
+
+            # Slider
             if hasattr(message, 'pitch'):
-                slider_buffer = message.pitch
+                neg = False
+                pitch = message.pitch
+                if pitch < 0:
+                    pitch *= -1
+                    neg = True
+                rem = (pitch % (QUANTIZE_MOD)) # Quantize to 2048-size steps
+                # print("rem:", rem)
+                if message.pitch == 8191: # max
+                    slider_buffer[channel].append(8191)
+                else:
+                    # slider_buffer[channel].append(message.pitch - rem if rem < 0 else message.pitch - rem)
+                    slider_buffer[channel].append(pitch - rem if neg == False else 0 - (pitch - rem))
+
+                if len(slider_buffer[channel]) > 3:
+                    # slider_buffer[channel] = slider_buffer[channel][1:4]
+                    del slider_buffer[channel][0]
+
+                # slider_buffer[channel][-1] = message.pitch
+
+                print(slider_buffer[channel][-1])
+
+                if channel != last_channel: # First event, or touched another slier: move instead of dragging (move and clicking) the mouse.
+                    pyautogui.leftClick(slider_coords[channel][0] + (CONST_SCALE * slider_buffer[channel][-1]) + X_OFFSET_SLIDER_MIDDLE, slider_coords[channel][1] + 2)
+                    # was moveTo
+                elif (slider_buffer[channel][-1] != slider_buffer[channel][-2]) or slider_buffer[channel][-1] == 8191 or slider_buffer[channel][-1] == -8192: # If at sample freq, or at min/max of given slider
+                    pyautogui.dragTo(slider_coords[channel][0] + (CONST_SCALE * slider_buffer[channel][-1]) + X_OFFSET_SLIDER_MIDDLE, slider_coords[channel][1] + 2, button='left')
+                    # rem = slider_buffer[channel][-1] % (128 * 16)
+                    # if rem != 0:
+                    #     slider_buffer[channel][-1] -= rem
+                    # print(f"slider buffer on move: {slider_buffer}")
+                
+                last_channel = channel
             
             if hasattr(message, 'control') and message.control == 60: # Jog wheel
                 # Jog CW
                 if message.value == 1:
                     # fine grain adjust
-                    pitch_delta = 128 if not slider_buffer >= 8191 else 0
+                    pitch_delta = 128 if not slider_buffer[channel][-1] >= 8191 else 0
                     if pitch_delta != 0:
                         pyautogui.dragRel(1, 0, button='left')
-                    slider_buffer += pitch_delta
-                    # print(f'fine grain CW {slider_buffer}')
+                    slider_buffer[channel][-1] += pitch_delta
+                    # print(f'fine grain CW {slider_buffer[channel][-1]}')
                 # Jog CCW
                 elif message.value == 65:
+                    # print("ch:", channel)
                     # fine grain adjust
-                    pitch_delta = -128 if not slider_buffer <= -8192 else 0
+                    pitch_delta = -128 if not slider_buffer[channel][-1] <= -8192 else 0
                     if pitch_delta != 0:
                         pyautogui.dragRel(-1, 0, button='left')
-                    slider_buffer += pitch_delta
-                    # print(f'fine grain CCW {slider_buffer}')
+                    slider_buffer[channel][-1] += pitch_delta
+                    # print(f'fine grain CCW {slider_buffer[channel][-1]}')
 
-            elif hasattr(message, 'pitch'): # Slider  
-                if channel != last_channel: # First event, or touched another slier: move instead of dragging (move and clicking) the mouse.
-                    pyautogui.moveTo(slider_coords[channel][0] + (CONST_SCALE * slider_buffer) + X_OFFSET_SLIDER_MIDDLE, slider_coords[channel][1] + 1)
+            # elif hasattr(message, 'pitch'): # Slider  
+            #     if channel != 7: # unused channel
+            #         if channel != last_channel: # First event, or touched another slier: move instead of dragging (move and clicking) the mouse.
+            #             pyautogui.moveTo(slider_coords[channel][0] + (CONST_SCALE * slider_buffer[channel][-1]) + X_OFFSET_SLIDER_MIDDLE, slider_coords[channel][1] + 1)
 
-                elif count == 0 or slider_buffer == 8191 or slider_buffer == -8192: # If at sample freq, or at min/max of given slider
-                    pyautogui.dragTo(slider_coords[channel][0] + (CONST_SCALE * slider_buffer) + X_OFFSET_SLIDER_MIDDLE, slider_coords[channel][1] + 1, button='left')
+            #         elif count == 0 or slider_buffer[channel][-1] == 8191 or slider_buffer[channel][-1] == -8192: # If at sample freq, or at min/max of given slider
+            #             pyautogui.dragTo(slider_coords[channel][0] + (CONST_SCALE * slider_buffer[channel][-1]) + X_OFFSET_SLIDER_MIDDLE, slider_coords[channel][1] + 1, button='left')
+            #             # rem = slider_buffer[channel][-1] % (128 * 16)
+            #             # if rem != 0:
+            #             #     slider_buffer[channel][-1] -= rem
+            #             # print(f"slider buffer on move: {slider_buffer}")
+            #     count += 1
+            #     if count == SAMPLE_PERIOD:
+            #         count = 0
                 
-                count += 1
-                if count == 16:
-                    count = 0
-                
-                last_channel = channel
+            #     last_channel = channel
 
             if not hasattr(message, 'note'):
                 continue
             
             # Buttons
             if message.type == "note_on" and message.velocity == 127:
-                if message.note == 8: # Solo button on slider 1
+                if message.note == 1: # rec button on slider 2
                     r = applescript.tell.app('System Events', 'keystroke "e" using {command down}') # Apply preset edits
                     if r.code != 0:
                         raise Exception(f"Applescript returned {r.code}")
@@ -227,6 +272,29 @@ def main():
                     r = applescript.tell.app('System Events', 'key code 36') # Open/close editor pane (key code 36 == enter)
                     if r.code != 0:
                         raise Exception(f"Applescript returned {r.code}")
+                elif message.note == 46 or message.note == 91: # Left button 
+                    r = applescript.tell.app('System Events', 'key code 123') # prev photo (key code 123 == left arrow)
+                    if r.code != 0:
+                        raise Exception(f"Applescript returned {r.code}")
+                elif message.note == 47 or message.note == 92: # Right button 
+                    r = applescript.tell.app('System Events', 'key code 124') # prev photo (key code 124 == right arrow)
+                    if r.code != 0:
+                        raise Exception(f"Applescript returned {r.code}")
+                
+                
+                elif message.note - 8 <= 15 and message.note - 8 >= 0: # Solo track selects (to select a slider to edit again. Should point mouse to last value)
+                    channel = message.note - 8
+                    if channel == 7:
+                        continue
+                    # rem = slider_buffer[message.note - 8] % (128 * 16)
+                    # if rem != 0:
+                    #     slider_buffer[message.note - 8] -= rem
+                    # print(f"slider buffer on select: {slider_buffer[message.note - 8][-1]}")
+                    pyautogui.moveTo(slider_coords[message.note - 8][0] + (CONST_SCALE * slider_buffer[message.note - 8][-1]) + X_OFFSET_SLIDER_MIDDLE, slider_coords[message.note - 8][1] + 2)
+
+                
+                
+                    
 
 
     return
