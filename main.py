@@ -2,6 +2,12 @@
 # Ian Webster
 # Dec 2022
 
+# Known issues:
+# - Moving 2 sliders at a time causes a ping-pong effect
+# - Button 8 messes things up
+# - Clicking an already-selected track (green) toggles it to orange, but it should stay green
+# - applescript algos are slow.
+
 import applescript
 import mido
 import pyautogui
@@ -136,14 +142,20 @@ def main():
     with mido.open_input('SAMSON Graphite MF8') as port:
         for message in port:
             print(message)
+
+            # Unused channel
+            if hasattr(message, 'note'):
+                if message.note == 7 or message.note == 15:
+                    continue
             
             # Store channel for sliders; ignore jog wheel and buttons.
-            if hasattr(message, 'channel') and message.type != "control_change" and message.type != "note_on" and message.type != "note_off":
-                slider_channel = message.channel
-            
-            # Unused channel
-            if message.channel == 7 or slider_channel == 7:
-                continue
+            if hasattr(message, 'channel'):
+                # Unused channel
+                if message.channel == 7 or slider_channel == 7:
+                    continue
+
+                if message.type != "control_change" and message.type != "note_on" and message.type != "note_off":
+                    slider_channel = message.channel
 
             if hasattr(message, 'velocity'):
                 if message.velocity != 0: # Prevent turning off lights
