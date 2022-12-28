@@ -29,6 +29,10 @@ FINE_GRAIN_DELTA = (HW_SLIDER_RANGE + 1) / SW_NUM_STEPS_SLIDER
 # SW
 Y_OFFSET_SLIDER = 2
 
+# Globals
+CONST_SCALE = None
+X_OFFSET_SLIDER_MIDDLE = None
+
 # Accessibility descriptions of sliders referenced with AppleScript
 # slider_ids = [
 #     "Adjust the properties of Light locally across this image",
@@ -69,6 +73,8 @@ midi_note_to_applescript = {
 slider_coords = [(None, None) for i in range(0, len(channel_names))]
 
 def main():
+    global CONST_SCALE
+    global X_OFFSET_SLIDER_MIDDLE
     # List MIDI Inputs and Outputs (we just need inputs)
     print("MIDI Outputs: ")
     print(mido.get_output_names())
@@ -111,6 +117,14 @@ def main():
     last_channel = None
     set_init_slider_positions()
 
+    outport = mido.open_output('SAMSON Graphite MF8')
+
+    # Initialize LEDs
+    for i in range(0, 32):
+        outport.send(mido.Message("note_on", note=i, velocity=0))
+        outport.send(mido.Message("note_on", note=i, velocity=127))
+
+
     # Start receiving MIDI events and translate to pyautogui actions
     with mido.open_input('SAMSON Graphite MF8') as port:
         for message in port:
@@ -123,6 +137,10 @@ def main():
             # Unused channel
             if message.channel == 7 or slider_channel == 7:
                 continue
+
+            if hasattr(message, 'velocity'):
+                if message.velocity != 0: # Prevent turning off lights
+                    outport.send(message) # Light
 
             # Slider
             if hasattr(message, 'pitch'):
@@ -159,10 +177,19 @@ def main():
                     hw_slider_buffer[slider_channel][-1] == HW_SLIDER_MIN: # If at sample freq, or at min/max of given slider
                     pyautogui.dragTo(slider_coords[slider_channel][0] + (CONST_SCALE * hw_slider_buffer[slider_channel][-1]) + X_OFFSET_SLIDER_MIDDLE, slider_coords[slider_channel][1] + Y_OFFSET_SLIDER, button='left')
 
+                # print(f"SLIDER: last_channel: {last_channel}, channel: {slider_channel}")
+                if last_channel != slider_channel:
+                        outport.send(mido.Message("note_on", note=slider_channel + 8, velocity=0)) # Turn off red (green state)
+                        if last_channel != None: 
+                            outport.send(mido.Message("note_on", note=last_channel + 8, velocity=127)) # Add red back (orange state)
+                # else:
+                #     outport.send(mido.Message("note_on", note=slider_channel + 8, velocity=127)) # Turn on red (orange state)
+                
                 last_channel = slider_channel
             
             # Jog wheel
             if hasattr(message, 'control') and message.control == 60: 
+
                 # Jog CW
                 if message.value == 1:
                     # fine grain adjust
@@ -192,17 +219,28 @@ def main():
                         raise Exception(f"Applescript returned {r.code}")
                     
                     if message.note == 1: # Rec button on slider 2
-                        set_init_slider_positions()
+                        set_init_slider_positions() # Apply the auto effects
                 
                 elif message.note - 8 <= 15 and message.note - 8 >= 0: # Solo track selects (to select a slider to edit again. Should point mouse to last value)
                     slider_channel = message.note - 8
                     if slider_channel == 7: # Unused slider_channel
                         continue
                     pyautogui.moveTo(slider_coords[slider_channel][0] + (CONST_SCALE * hw_slider_buffer[slider_channel][-1]) + X_OFFSET_SLIDER_MIDDLE, slider_coords[slider_channel][1] + Y_OFFSET_SLIDER)
+                    
+                    # print(f"BUTTONS: last_channel: {last_channel}, channel: {slider_channel}")
+                    if last_channel != slider_channel:
+                        outport.send(mido.Message("note_on", note=slider_channel + 8, velocity=0))
+                        if last_channel != None:
+                            outport.send(mido.Message("note_on", note=last_channel + 8, velocity=127))
+                    else:
+                        outport.send(mido.Message("note_on", note=slider_channel + 8, velocity=127))
+                    last_channel = slider_channel
 
     return
 
 def set_init_slider_positions():
+    global CONST_SCALE
+    global X_OFFSET_SLIDER_MIDDLE
     # Set init values of sliders
     # NOTE: Assume edit pane still open
     i = 0
@@ -220,7 +258,7 @@ def set_init_slider_positions():
         i += 1
 
     # Arbitrarily move to starting position of first slider
-    pyautogui.moveTo(slider_coords[0][0], slider_coords[0][1] + Y_OFFSET_SLIDER)
+    pyautogui.moveTo(slider_coords[0][0] + (CONST_SCALE * hw_slider_buffer[0][-1]) + X_OFFSET_SLIDER_MIDDLE, slider_coords[0][1] + Y_OFFSET_SLIDER)
     
 
 def get_applescript_slider_attribute_by_description(attribute, description):
