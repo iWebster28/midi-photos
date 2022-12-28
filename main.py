@@ -3,8 +3,8 @@
 # Dec 2022
 
 # Known issues:
+# - going back/forward an image, the track select will forget positions. Once applescript is faster, could implement get_slider_position for this.
 # - Moving 2 sliders at a time causes a ping-pong effect
-# - Button 8 messes things up
 # - Clicking an already-selected track (green) toggles it to orange, but it should stay green
 # - applescript algos are slow.
 
