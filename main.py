@@ -101,6 +101,10 @@ def main():
     for i in range(0, 32):
         outport.send(mido.Message("note_on", note=i, velocity=0))
         outport.send(mido.Message("note_on", note=i, velocity=127))
+    
+    for i in [0, 1, 91, 92]:
+        outport.send(mido.Message("note_on", note=i, velocity=0))
+        outport.send(mido.Message("note_on", note=i, velocity=127))
 
     # Focus on the Photos editing pane
     result = applescript.tell.app("Photos", "activate") 
