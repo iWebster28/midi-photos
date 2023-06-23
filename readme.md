@@ -12,3 +12,7 @@
 - Connect Samson Graphite MF8 to your computer  
 - Run
 ```python3 main.py```
+
+## Issues:
+- For python-rtmidi: https://github.com/SpotlightKid/python-rtmidi/issues/149
+- Fix as of 6/22/23: ```pip install --upgrade --no-cache-dir --no-binary python-rtmidi python-rtmidi```
