@@ -71,6 +71,7 @@ SLIDER_BUFFER_SIZE = 2 # Store last 2 values for slider buffer
 # Button mapping to applescript commands (run under System Events)
 midi_note_to_applescript = {
     1: 'keystroke "e" using {command down}', # rec button on slider 2 -> Apply preset edits
+    2: 'keystroke "e" using {command down}', # rec button on slider 3 -> Apply preset edits (but no set_init_slider_positions after)
     0: 'key code 36', # Rec button on slider 1 -> Open/close editor pane (key code 36 == enter)
     46: 'key code 123', # Left button -> prev photo (key code 123 == left arrow)
     91: 'key code 123', # RW button
