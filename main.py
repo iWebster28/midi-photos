@@ -35,6 +35,9 @@ FINE_GRAIN_DELTA = (HW_SLIDER_RANGE + 1) / SW_NUM_STEPS_SLIDER
 # SW
 Y_OFFSET_SLIDER = 2
 
+# Loading LEDs
+NUM_LOADING_LEDS = 5
+
 # Globals
 CONST_SCALE = None
 X_OFFSET_SLIDER_MIDDLE = None
@@ -266,6 +269,10 @@ def set_init_slider_positions():
         hw_slider_buffer[i].append(hw_slider_conv)
         print(f"Found SW slider value for channel {channel_names[i]} with value: {r_value.out}")
         print(f"- Convert to HW slider value: {hw_slider_conv}")
+        
+        # Optional
+        update_loading_led(int(((i / (len(channel_names) - 1)) * NUM_LOADING_LEDS)))
+        
         i += 1
 
     # Arbitrarily move to starting position of first slider
@@ -281,7 +288,19 @@ def update_track_led(slider_channel):
         if last_channel != None: 
             outport.send(mido.Message("note_on", note=last_channel + 8, velocity=127)) # Add red back (orange state)
     last_channel = slider_channel
+
+def update_loading_led(load_state):
+    """Ranges from midi note 54-58 (F1-F5 buttons) to indicate loading status
+    load_state: 0 = F1 led, 1 = F2 led, 2 = F3 led, 3 = F4 led, 4 = F5 led, 5 = all off
+    """
+    global outport
+    if load_state == NUM_LOADING_LEDS:
+        # Turn off all LEDs
+        for i in range(0, NUM_LOADING_LEDS):
+            outport.send(mido.Message("note_on", note=54+i, velocity=0)) # Turn off LED
+        return
     
+    outport.send(mido.Message("note_on", note=54+load_state, velocity=127)) # Turn on loading LED
 
 def get_applescript_slider_attribute_by_description(attribute, description):
     # NOTE: O(n) where `n` is size of all contents/items in photos app window
