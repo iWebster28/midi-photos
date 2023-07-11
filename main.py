@@ -80,6 +80,8 @@ midi_note_to_applescript = {
     91: 'key code 123', # RW button
     47: 'key code 124', # Right button -> prev photo (key code 124 == right arrow)
     92: 'key code 124', # FF button
+    # 93: 'keystroke "-" using {command down}', # Zoom in button
+    # 94: 'keystroke "=" using {command down}', # Zoom out button
 }
 
 # UI coordinates of sliders in photos.
@@ -294,6 +296,8 @@ def update_loading_led(load_state):
     load_state: 0 = F1 led, 1 = F2 led, 2 = F3 led, 3 = F4 led, 4 = F5 led, 5 = all off
     """
     global outport
+    assert (load_state >= 0 and load_state <= NUM_LOADING_LEDS), \
+        f"load_state {load_state} is not in range(0, NUM_LOADING_LEDS = {NUM_LOADING_LEDS})"
     if load_state == NUM_LOADING_LEDS:
         # Turn off all LEDs
         for i in range(0, NUM_LOADING_LEDS):
