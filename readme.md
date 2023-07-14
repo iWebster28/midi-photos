@@ -1,5 +1,8 @@
 # midi-photos
 
+## See wiki:
+[Wiki](https://github.com/iWebster28/midi-photos/wiki)
+
 ## To install:
 - Create a virtual environment  
 ```python3 -v venv env```
