@@ -13,6 +13,11 @@
 - Run
 ```python3 main.py```
 
-## Issues:
+## Known Issues:
 - For python-rtmidi: https://github.com/SpotlightKid/python-rtmidi/issues/149
-- Fix as of 6/22/23: ```pip install --upgrade --no-cache-dir --no-binary python-rtmidi python-rtmidi```
+  - Fix as of 6/22/23: ```pip install --upgrade --no-cache-dir --no-binary python-rtmidi python-rtmidi```
+- Applescript algos are slow.
+- Upon using the back/forward buttons to change images, the track select will forget positions. 
+  - If applescript is faster, could implement get_slider_position for this.
+- Moving 2 sliders at a time causes a ping-pong effect
+- Clicking an already-selected track (green) toggles it to orange, but it should stay green
