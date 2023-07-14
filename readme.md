@@ -21,3 +21,7 @@
   - If applescript is faster, could implement get_slider_position for this.
 - Moving 2 sliders at a time causes a ping-pong effect
 - Clicking an already-selected track (green) toggles it to orange, but it should stay green
+
+
+## Generating docs
+- ```python3 -m pydoc main > main.md```
