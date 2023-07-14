@@ -9,7 +9,7 @@
 ```pip3 install -r requirements.txt```
 
 ## To run:
-- Connect Samson Graphite MF8 to your computer  
+- Connect Samson Graphite MF8 to your computer (note: untested with multiple midi devices connected)
 - Run
 ```python3 main.py```
 
