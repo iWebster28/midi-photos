@@ -1,7 +1,9 @@
-# main.py
-# Interface midi controllers with Photos app on macOS.
-# Ian Webster
-# Dec 2022
+"""
+main.py
+Interface midi controllers with Photos app on macOS.
+Ian Webster
+Dec 2022
+"""
 
 # Note: this is not an object-oriented approach, but rather a functional approach. 
 # It is assumed that only ONE controller is connected to the computer at a time, to ONE instance of Photos.
@@ -60,6 +62,8 @@ hw_slider_buffer = [[0] for i in range(len(channel_names))] # Buffer
 slider_coords = [(None, None) for i in range(0, len(channel_names))]
 
 def main():
+    """Main function to run program.
+    """
     global slider_channel
     global last_channel
 
@@ -372,4 +376,3 @@ def update_loading_led(load_state: int) -> None:
 
 if __name__ == "__main__":
     main()
-    
