@@ -1,4 +1,4 @@
-# Applescript-main 
+# applescript-main.py
 # Interface midi controllers with Photos app on macOS.
 # Ian Webster
 # Dec 2022
