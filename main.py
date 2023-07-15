@@ -190,7 +190,7 @@ def jog_handler(message: mido.Message) -> None:
     Args:
         message (mido.Message): Message from controller.
     """
-    global slider_channel
+
     # Jog CW
     if message.value == 1:
         jog_handler_helper(JogDirection.RIGHT)
