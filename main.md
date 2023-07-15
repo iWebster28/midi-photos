@@ -9,6 +9,28 @@ DESCRIPTION
     Ian Webster
     Dec 2022
 
+CLASSES
+    builtins.object
+        JogDirection
+    
+    class JogDirection(builtins.object)
+     |  # Enumeration where RIGHT = 1, LEFT = -1
+     |  
+     |  Data descriptors defined here:
+     |  
+     |  __dict__
+     |      dictionary for instance variables (if defined)
+     |  
+     |  __weakref__
+     |      list of weak references to the object (if defined)
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data and other attributes defined here:
+     |  
+     |  LEFT = -1
+     |  
+     |  RIGHT = 1
+
 FUNCTIONS
     button_handler(message: mido.messages.messages.Message) -> None
         Handle button messages from controller.
@@ -39,6 +61,15 @@ FUNCTIONS
         
         Args:
             message (mido.Message): Message from controller.
+    
+    jog_handler_helper(direction: main.JogDirection) -> None
+        Helper to handle jog wheel changes.
+        
+        Args:
+            direction (JogDirection): Indicates direction of jog wheel change. 
+        
+        Raises:
+            Exception: If invalid JogDirection.
     
     main()
         Main function to run program.
@@ -90,8 +121,5 @@ DATA
     outport = None
     slider_channel = 0
     slider_coords = [(None, None), (None, None), (None, None), (None, None...
-
-FILE
-    main.py
 
 
