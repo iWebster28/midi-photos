@@ -23,6 +23,11 @@ outport = None
 slider_channel = 0
 last_channel = None
 
+# Enumeration where RIGHT = 1, LEFT = -1
+class JogDirection:
+    RIGHT = 1
+    LEFT = -1
+
 # Summary of Basic light sliders in Photos app according to AppleScript descriptions:
 
 # Brilliance: slider "Adjust the properties of Light locally across this image" of group 1 of group "Light" of scroll area 1 of group 1 of group 1 of splitter group 1 of window 1 of application process "Photos" of application "System Events"
@@ -188,24 +193,40 @@ def jog_handler(message: mido.Message) -> None:
     global slider_channel
     # Jog CW
     if message.value == 1:
-        # fine grain adjust
-        pitch_delta = FINE_GRAIN_DELTA if not hw_slider_buffer[slider_channel][-1] >= HW_SLIDER_MAX else 0
-        if pitch_delta != 0:
-            pyautogui.dragRel(1, 0, button='left')
-        hw_slider_buffer[slider_channel][-1] += pitch_delta
-        if DIAGNOSTIC_MODE:
-            print(f'fine grain CW {hw_slider_buffer[slider_channel][-1]}')
+        jog_handler_helper(JogDirection.RIGHT)
     # Jog CCW
     elif message.value == 65:
-        if DIAGNOSTIC_MODE:
-            print("ch:", slider_channel)
-        # fine grain adjust
+        jog_handler_helper(JogDirection.LEFT)
+
+def jog_handler_helper(direction: JogDirection) -> None:
+    """Helper to handle jog wheel changes.
+
+    Args:
+        direction (JogDirection): Indicates direction of jog wheel change. 
+
+    Raises:
+        Exception: If invalid JogDirection.
+    """
+    global slider_channel
+
+    pitch_delta = 0
+
+    if DIAGNOSTIC_MODE:
+        print("ch:", slider_channel)
+    # fine grain adjust
+    if direction == JogDirection.RIGHT:
+        pitch_delta = FINE_GRAIN_DELTA if not hw_slider_buffer[slider_channel][-1] >= HW_SLIDER_MAX else 0
+    elif direction == JogDirection.LEFT:
         pitch_delta = -FINE_GRAIN_DELTA if not hw_slider_buffer[slider_channel][-1] <= HW_SLIDER_MIN else 0
-        if pitch_delta != 0:
-            pyautogui.dragRel(-1, 0, button='left')
-        hw_slider_buffer[slider_channel][-1] += pitch_delta
-        if DIAGNOSTIC_MODE:
-            print(f'fine grain CCW {hw_slider_buffer[slider_channel][-1]}')
+    else:
+        raise Exception("Incorrect direction call to jog_handler_helper().")
+    
+    if pitch_delta != 0:
+        pyautogui.dragRel(direction, 0, button='left')
+    hw_slider_buffer[slider_channel][-1] += pitch_delta
+    if DIAGNOSTIC_MODE:
+        print(f'fine grain CW {hw_slider_buffer[slider_channel][-1]}')
+
 
 def button_handler(message: mido.Message) -> None:
     """Handle button messages from controller.
