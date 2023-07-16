@@ -1,5 +1,10 @@
 # midi-photos
 
+## What is it?
+Midi Photos makes it easier for people to edit mass amounts of photos at once. It was motivated by my personal experience as a photographer, photo editor, and programmer, and has helped reduce physical strain in my editing workflow.  
+
+The Midi Photos software-hardware interface is built in Python and makes photo editing faster on the macOS Photos app. Instead of manually using the mouse to change photo parameters like brightness and contrast, Midi Photos allows you to use a physical MIDI controller (usually used for music production) to control the same parameters in a faster, more tactile manner. As a musician, I saw the opportunity to create a new use for my MIDI controller. To build Midi Photos, I used libraries such as mido for MIDI event handling, and applescript paired with pyautogui as a pseudo-“macOS Photos API”.
+
 ## See wiki:
 [Wiki](https://github.com/iWebster28/midi-photos/wiki)
 
@@ -26,5 +31,5 @@
 - Clicking an already-selected track (green) toggles it to orange, but it should stay green
 
 
-## Generating docs
+## Generating docs:
 - ```python3 -m pydoc main > main.md```
